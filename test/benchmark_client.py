@@ -244,6 +244,9 @@ def main():
     for percentile, value in zip(percentiles, values):
         print(f"decode_token_time  P{percentile}: {value * 1000:.6f}ms")
         decode_token_time_dict[f"P{percentile}"] = value * 1000
+    mean_time = np.mean(decode_token_time)
+    print(f"decode_token_time mean: {mean_time * 1000:.6f}ms")
+    decode_token_time_dict["mean"] = mean_time * 1000
     dump_dict["decode_token_time_dict"] = decode_token_time_dict
     print(dump_dict)
 

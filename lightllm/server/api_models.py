@@ -39,6 +39,7 @@ class UsageInfo(BaseModel):
 class ChatMessage(BaseModel):
     role: str
     content: str
+    reasoning_content: Optional[str] = None
 
 
 class ChatCompletionResponseChoice(BaseModel):
@@ -63,6 +64,7 @@ class ChatCompletionResponse(BaseModel):
 class DeltaMessage(BaseModel):
     role: Optional[str] = None
     content: Optional[str] = None
+    reasoning_content: Optional[str] = None
 
 
 class ChatCompletionStreamResponseChoice(BaseModel):

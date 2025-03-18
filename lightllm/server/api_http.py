@@ -41,6 +41,8 @@ from .httpserver_for_pd_master.manager import HttpServerManagerForPDMaster
 from .api_lightllm import lightllm_get_score, lightllm_pd_generate_stream
 from lightllm.utils.envs_utils import get_env_start_args
 
+from .reasoning_parser import ReasoningParser
+
 from .api_models import (
     ChatCompletionRequest,
     UsageInfo,
@@ -277,12 +279,32 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request)
             sub_req_id = sub_ids[i]
             prompt_tokens = prompt_tokens_dict[sub_req_id]
             completion_tokens = count_output_tokens_dict[sub_req_id]
+
+            reasoning_parser = "deepseek-r1"
+            separate_reasoning = True
+
+            if reasoning_parser and separate_reasoning:
+                try:
+                    parser = ReasoningParser(
+                        model_type=reasoning_parser, stream_reasoning=False
+                    )
+                    reasoning_text, text = parser.parse_non_stream("".join(final_output_dict[sub_req_id]))
+                except Exception as e:
+                    logger.error(f"Exception: {e}")
+                    return create_error_response(
+                        HTTPStatus.BAD_REQUEST,
+                        "Failed to parse reasoning related info to json format!",
+                    )
+            else:
+                text = final_output_dict[sub_req_id]
+                reasoning_text = None
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
             )
-            chat_message = ChatMessage(role="assistant", content="".join(final_output_dict[sub_req_id]))
+            chat_message = ChatMessage(role="assistant", content=text, reasoning_content=reasoning_text)
             choice = ChatCompletionResponseChoice(
                 index=i, message=chat_message, finish_reason=finish_reason_dict[sub_req_id]
             )
@@ -300,10 +322,33 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request)
         finish_reason = None
         from .req_id_generator import convert_sub_id_to_group_id
 
+        reasoning_parser = "deepseek-r1"
+        separate_reasoning = True
+
+        if reasoning_parser and separate_reasoning:
+            parser = ReasoningParser(
+                model_type=reasoning_parser, stream_reasoning=True
+            )
+        else:
+            parser = None
+
         async for sub_req_id, request_output, metadata, finish_status in results_generator:
             group_request_id = convert_sub_id_to_group_id(sub_req_id)
 
-            delta_message = DeltaMessage(role="assistant", content=request_output)
+            if parser:
+                try:
+                    reasoning_text, text = parser.parse_stream_chunk(request_output)
+                except Exception as e:
+                    logger.error(f"Exception: {e}")
+                    yield create_error_response(
+                        HTTPStatus.BAD_REQUEST,
+                        "Failed to parse reasoning related info to json format!",
+                    )
+            else:
+                reasoning_text = None
+                text = request_output
+
+            delta_message = DeltaMessage(role="assistant", content=text, reasoning_content=reasoning_text)
             if finish_status.is_finished():
                 finish_reason = finish_status.get_finish_reason()
             stream_choice = ChatCompletionStreamResponseChoice(
