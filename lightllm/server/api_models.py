@@ -83,3 +83,80 @@ class ChatCompletionStreamResponse(BaseModel):
     @field_validator("id", mode="before")
     def ensure_id_is_str(cls, v):
         return str(v)
+
+
+class StreamOptions(BaseModel):
+    include_usage: Optional[bool] = False
+
+
+class CompletionRequest(BaseModel):
+    # Ordered by official OpenAI API documentation
+    # https://platform.openai.com/docs/api-reference/completions/create
+    model: str
+    prompt: Union[List[int], List[List[int]], str, List[str]]
+    best_of: Optional[int] = None
+    echo: bool = False
+    frequency_penalty: float = 0.0
+    logit_bias: Optional[Dict[str, float]] = None
+    logprobs: Optional[int] = None
+    max_tokens: int = 16
+    n: int = 1
+    presence_penalty: float = 0.0
+    seed: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: bool = False
+    stream_options: Optional[StreamOptions] = None
+    suffix: Optional[str] = None
+    temperature: float = 1.0
+    top_p: float = 1.0
+    user: Optional[str] = None
+
+    # Extra parameters for SRT backend only and will be ignored by OpenAI models.
+    top_k: int = -1
+    min_p: float = 0.0
+    min_tokens: int = 0
+    json_schema: Optional[str] = None
+    regex: Optional[str] = None
+    ebnf: Optional[str] = None
+    repetition_penalty: float = 1.0
+    stop_token_ids: Optional[List[int]] = None
+    no_stop_trim: bool = False
+    ignore_eos: bool = False
+    skip_special_tokens: bool = True
+    lora_path: Optional[Union[List[Optional[str]], Optional[str]]] = None
+    session_params: Optional[Dict] = None
+
+
+class CompletionResponseChoice(BaseModel):
+    index: int
+    text: str
+    logprobs: Optional[int] = None
+    finish_reason: Optional[str] = None
+    matched_stop: Union[None, int, str] = None
+
+
+class CompletionResponse(BaseModel):
+    id: str
+    object: str = "text_completion"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[CompletionResponseChoice]
+    usage: UsageInfo
+
+
+class CompletionResponseStreamChoice(BaseModel):
+    index: int
+    text: str
+    logprobs: Optional[int] = None
+    finish_reason: Optional[str] = None
+    matched_stop: Union[None, int, str] = None
+
+
+class CompletionStreamResponse(BaseModel):
+    id: str
+    object: str = "text_completion"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[CompletionResponseStreamChoice]
+    usage: Optional[UsageInfo] = None
+
